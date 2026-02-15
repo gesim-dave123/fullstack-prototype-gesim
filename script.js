@@ -1,5 +1,5 @@
-let currentUser = null; //A global variable: `let currentUser = null;`
-const STORAGE_KEY = "ipt_demi_v1"; //A constant: `const STORAGE_KEY = "app_data";`
+let currentUser = null;
+const STORAGE_KEY = "ipt_demi_v1";
 
 window.db = {
   accounts: [],
@@ -11,16 +11,46 @@ window.db = {
 function saveToStorage() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(window.db));
 }
+async function seedDatabase() {
+  const adminPassword = await hashPassword("Password123!");
 
-function loadFromStorage() {
+  window.db = {
+    accounts: [
+      {
+        firstName: "System",
+        lastName: "Admin",
+        email: "admin@example.com",
+        hashedPassword: adminPassword,
+        verified: true,
+        role: "Admin",
+      },
+    ],
+    departments: [
+      {
+        id: 1,
+        name: "Engineering",
+        description: "Handles system development",
+      },
+      {
+        id: 2,
+        name: "HR",
+        description: "Handles employee relations",
+      },
+    ],
+    employees: [],
+    requests: [],
+  };
+  saveToStorage();
+}
+
+async function loadFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
 
     if (!raw) {
-      seedDatabase();
+      await seedDatabase();
       return;
     }
-
     const parsed = JSON.parse(raw);
 
     // Basic validation
@@ -35,7 +65,6 @@ function loadFromStorage() {
     seedDatabase();
   }
 }
-
 
 // Toast notification function
 function showToast(message, type = "error") {
@@ -93,7 +122,6 @@ function handleRouting() {
   //A function `handleRouting()` that:
   const hash = window.location.hash || "#/";
   const route = hash.replace("#", "");
-
   const protectedRoutes = [
     "/profile",
     "/requests",
@@ -117,9 +145,6 @@ function handleRouting() {
   if (adminRoutes.includes(route) && !isAdmin) {
     return navigateTo("#/");
   }
-
-  // --- UI Update Logic ---
-
   // Hide all pages first
   document.querySelectorAll(".page").forEach((page) => {
     page.classList.remove("active");
@@ -143,6 +168,22 @@ function handleRouting() {
 
   if (targetPage) {
     targetPage.classList.add("active");
+  }
+
+  if (route === "/profile" && isAuth) {
+    renderProfile();
+  }
+  if (route === "/accounts" && isAdmin) {
+    renderAccounts();
+  }
+  if (route === "/departments" && isAdmin) {
+    renderDepartments();
+  }
+  if (route === "/employees" && isAdmin) {
+    renderEmployees();
+  }
+  if (route === "/requests" && isAuth) {
+    renderRequests();
   }
 }
 
@@ -189,7 +230,7 @@ async function handleRegistration(event) {
     email,
     hashedPassword,
     verified: false, // default
-    role: email === "admin@example.com" ? "Admin" : "Employee",
+    role: email,
   };
 
   window.db.accounts.push(newUser);
@@ -230,6 +271,7 @@ function verifyEmail(event) {
 
   setTimeout(() => {
     document.getElementById("verify-alert").classList.remove("d-none");
+    document.getElementById("verify-btn").classList.add("disabled");
     document.getElementById("login-alert").classList.remove("d-none");
     showToast("Successfully verified your email!.", "success");
   }, 1500);
@@ -272,7 +314,9 @@ function setAuthState(isAuthenticated, user = null) {
 // Handle Logout
 function handleLogout(event) {
   event.preventDefault();
-  localStorage.clear();
+  // localStorage.clear();
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("currentUser");
   setAuthState(false);
   showToast("You have been logged out", "success");
   setTimeout(() => {
@@ -331,34 +375,795 @@ async function handleLogin(event) {
   }, 1000);
 }
 
+function renderProfile() {
+  currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+  if (!currentUser) {
+    showToast("No user data found. Please login again.", "error");
+    navigateTo("#/login");
+    return;
+  }
+ // console.log("Rendering profile for user:", currentUser);
+  const userName = currentUser.firstName + " " + currentUser.lastName;
+  document.getElementById("profile-name").value = userName;
+  document.getElementById("profile-role").value = currentUser.role;
+}
+function addAccountModal() {
+  // Reset form fields
+  document.getElementById("account-firstname").value = "";
+  document.getElementById("account-lastname").value = "";
+  document.getElementById("account-email").value = "";
+  document.getElementById("account-password").value = "";
+  document.getElementById("account-role").value = "User";
+  document.getElementById("account-verified").checked = false;
+
+  // Enable all fields
+  document.getElementById("account-password").disabled = false;
+  document.getElementById("account-email").disabled = false;
+  document.getElementById("account-role").disabled = false;
+  document.getElementById("account-verified").disabled = false;
+
+  // Reset button to add mode
+  document.getElementById("save-account-btn").onclick = addAccount;
+
+  // Show form
+  document.getElementById("account-form").classList.remove("d-none");
+}
+function closeAccountForm() {
+  document.getElementById("account-form").classList.add("d-none");
+}
+
+function openAddDepartmentForm() {
+  // Reset form fields
+  document.getElementById("department-form").classList.remove("d-none");
+}
+
+function closeDepartmentForm() {
+  document.getElementById("department-form").classList.add("d-none");
+  document.getElementById("department-name").value = "";
+  document.getElementById("department-description").value = "";
+}
+
+async function addDepartment(event) {
+  event.preventDefault();
+  const name = document.getElementById("department-name").value.trim();
+  const description = document
+    .getElementById("department-description")
+    .value.trim();
+
+  if (!name || !description) {
+    showToast("Please fill in all fields", "error");
+    return;
+  }
+  const newDepartment = {
+    name,
+    description,
+  };
+  window.db.departments.push(newDepartment);
+  saveToStorage();
+  showToast("Department added successfully!", "success");
+  document.getElementById("department-form").classList.add("d-none");
+  renderDepartments();
+  closeDepartmentForm();
+}
+
+async function editDepartment(index) {
+  const department = window.db.departments[index];
+  if (!department) {
+    showToast("Department not found", "error");
+    return;
+  }
+
+  // Store the index for save/delete operations
+  window.currentEditDepartmentIndex = index;
+
+  document.getElementById("department-name").value = department.name;
+  document.getElementById("department-description").value =
+    department.description;
+  document.getElementById("department-form").classList.remove("d-none");
+  document.getElementById("edit-department-btn").classList.remove("d-none");
+  document.getElementById("add-department-btn").classList.add("d-none");
+}
+
+async function saveDepartment(event) {
+  event.preventDefault();
+  const index = window.currentEditDepartmentIndex;
+
+  if (index === undefined) {
+    showToast("Department not found", "error");
+    return;
+  }
+
+  const name = document.getElementById("department-name").value.trim();
+  const description = document
+    .getElementById("department-description")
+    .value.trim();
+
+  if (!name || !description) {
+    showToast("Please fill in all fields", "error");
+    return;
+  }
+
+  const editedDepartment = {
+    ...window.db.departments[index],
+    name,
+    description,
+  };
+
+  window.db.departments[index] = editedDepartment;
+  saveToStorage();
+  showToast("Department updated successfully!", "success");
+  document.getElementById("department-form").classList.add("d-none");
+  renderDepartments();
+  closeDepartmentForm();
+}
+
+async function deleteDepartment(event, index) {
+  event.preventDefault();
+
+  const department = window.db.departments[index];
+  if (!department) {
+    showToast("Department not found", "error");
+    return;
+  }
+
+  if (
+    confirm(
+      `Are you sure you want to delete the "${department.name}" department?`,
+    )
+  ) {
+    window.db.departments.splice(index, 1);
+    saveToStorage();
+    showToast("Department deleted successfully!", "success");
+    document.getElementById("department-form").classList.add("d-none");
+    renderDepartments();
+    closeDepartmentForm();
+  }
+}
+async function addAccount(event) {
+  event.preventDefault();
+  const firstName = document.getElementById("account-firstname").value.trim();
+  const lastName = document.getElementById("account-lastname").value.trim();
+  const email = document.getElementById("account-email").value.trim();
+  const password = document.getElementById("account-password").value.trim();
+  const role = document.getElementById("account-role").value;
+
+  if (!firstName || !lastName || !email || !password || !role) {
+    showToast("Please fill in all fields", "error");
+    return;
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showToast("Please enter a valid email address", "error");
+    return;
+  }
+  if (password.length <= 6) {
+    showToast("Password must be at least 6 characters", "error");
+    return;
+  }
+  const existingEmail = window.db.accounts.find((u) => u.email === email);
+  if (existingEmail) {
+    showToast(
+      "Email already registered. Please use a different email.",
+      "error",
+    );
+    return;
+  }
+  const hashedPassword = await hashPassword(password);
+
+  const newAccount = {
+    firstName,
+    lastName,
+    email,
+    hashedPassword,
+    verified: true, // Admin-created accounts are auto-verified
+    role,
+  };
+  window.db.accounts.push(newAccount);
+  saveToStorage();
+  showToast("Account created successfully!", "success");
+  document.getElementById("account-form").classList.add("d-none");
+  renderAccounts();
+
+  closeAccountForm();
+}
+
+async function saveAccount(event, index) {
+  event.preventDefault();
+  const firstName = document.getElementById("account-firstname").value.trim();
+  const lastName = document.getElementById("account-lastname").value.trim();
+  const email = document.getElementById("account-email").value.trim();
+  const role = document.getElementById("account-role").value;
+  const verified = document.getElementById("account-verified").checked;
+
+  if (!firstName || !lastName || !email || !role) {
+    showToast("Please fill in all fields", "error");
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showToast("Please enter a valid email address", "error");
+    return;
+  }
+
+  const account = window.db.accounts[index];
+  const oldEmail = account.email;
+
+  if (email !== oldEmail) {
+    const existingEmail = window.db.accounts.find((u) => u.email === email);
+    if (existingEmail) {
+      showToast(
+        "Email already registered. Please use a different email.",
+        "error",
+      );
+      return;
+    }
+  }
+
+  const editedAccount = {
+    ...account,
+    firstName,
+    lastName,
+    email,
+    verified,
+    role,
+  };
+
+  window.db.accounts[index] = editedAccount;
+  saveToStorage();
+  showToast("Account updated successfully!", "success");
+  document.getElementById("account-form").classList.add("d-none");
+  renderAccounts();
+  closeAccountForm();
+}
+
+async function resetPassword(event, index) {
+  event.preventDefault();
+  const account = window.db.accounts[index];
+  if (!account) {
+    showToast("Account not found", "error");
+    return;
+  }
+  const newPassword = prompt("Enter new password for " + account.email);
+  if (!newPassword) {
+    showToast("Password reset cancelled", "info");
+    return;
+  }
+  if (newPassword.length <= 6) {
+    showToast("Password must be at least 6 characters", "error");
+    return;
+  }
+  const hashedPassword = await hashPassword(newPassword);
+  account.hashedPassword = hashedPassword;
+
+  saveToStorage();
+  showToast("Password reset successfully!", "success");
+}
+
+async function deleteAccount(event, index) {
+  event.preventDefault();
+  const accountIndex = index !== undefined ? index : window.currentEditIndex;
+
+  if (accountIndex === undefined) {
+    showToast("Account not found", "error");
+    return;
+  }
+  if (window.db.accounts[accountIndex].email === currentUser.email) {
+    showToast("You cannot delete your own account", "error");
+    return;
+  }
+
+  if (confirm("Are you sure you want to delete this account?")) {
+    window.db.accounts.splice(accountIndex, 1);
+    saveToStorage();
+    showToast("Account deleted successfully!", "success");
+    document.getElementById("account-form").classList.add("d-none");
+    renderAccounts();
+    closeAccountForm();
+  }
+}
+
+async function editAccount(index) {
+  addAccountModal();
+
+  // Store the index for delete function to use
+  window.currentEditIndex = index;
+
+  const account = window.db.accounts[index];
+  if (!account) {
+    showToast("Account not found", "error");
+    return;
+  }
+  const oldEmail = account.email;
+  document.getElementById("account-firstname").value = account.firstName;
+  document.getElementById("account-lastname").value = account.lastName;
+  document.getElementById("account-email").value = account.email;
+  document.getElementById("account-role").value = account.role;
+  document.getElementById("account-password").value = ".........";
+  document.getElementById("account-password").disabled = true;
+  document.getElementById("account-verified").checked = account.verified;
+  document.getElementById("save-account-btn").onclick = () =>
+    saveAccount(event, index);
+
+  if (account.email === currentUser.email) {
+    document.getElementById("account-email").disabled = true;
+    document.getElementById("account-role").disabled = true;
+    document.getElementById("account-verified").disabled = true;
+    document.getElementById("delete-account-btn").disabled = true;
+  } else {
+    document.getElementById("account-email").disabled = false;
+    document.getElementById("account-role").disabled = false;
+    document.getElementById("account-verified").disabled = false;
+    document.getElementById("delete-account-btn").disabled = false;
+  }
+}
+function renderAccounts() {
+  const accountsTableBody = document.getElementById("accounts-table-body");
+  accountsTableBody.innerHTML = "";
+  window.db.accounts.forEach((account, index) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${account.firstName + " " + account.lastName}</td>
+      <td>${account.email}</td>
+      <td>${account.role}</td>
+      <td>${account.verified ? "Yes" : "No"}</td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary edit-account-btn" data-index="${index}" onclick="editAccount(${index})">Edit</button>
+        <button class="btn btn-sm btn-outline-warning reset-password-btn" data-index="${index}" onclick="resetPassword(event, ${index})">Reset Password</button>
+        <button class="btn btn-sm btn-outline-danger delete-account-btn" data-index="${index}" onclick="deleteAccount(event, ${index})">Delete</button>
+      </td>
+    `;
+    accountsTableBody.appendChild(row);
+  });
+}
+function renderDepartments() {
+  const departmentsTableBody = document.getElementById(
+    "departments-table-body",
+  );
+  departmentsTableBody.innerHTML = "";
+  window.db.departments.forEach((department, index) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${department.name}</td>
+      <td>${department.description}</td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary edit-department-btn" data-index="${index}" onclick="editDepartment(${index})">Edit</button>
+        <button class="btn btn-sm btn-outline-danger delete-department-btn" data-index="${index}" onclick="deleteDepartment(event, ${index})">Delete</button>
+      </td>
+    `;
+    departmentsTableBody.appendChild(row);
+  });
+}
+
+// Helper function to populate User Email dropdown
+function renderAccountsList() {
+  const emailSelect = document.getElementById("employee-email");
+  emailSelect.innerHTML = '<option value="">-- Select User --</option>';
+
+  window.db.accounts.forEach((account) => {
+    const option = document.createElement("option");
+    option.value = account.email;
+    option.textContent = `${account.firstName} ${account.lastName} (${account.email})`;
+    emailSelect.appendChild(option);
+  });
+}
+
+// Helper function to populate Department dropdown
+function renderDepartmentsList() {
+  const deptSelect = document.getElementById("employee-department");
+  deptSelect.innerHTML = '<option value="">-- Select Department --</option>';
+
+  window.db.departments.forEach((dept, index) => {
+    const option = document.createElement("option");
+    option.value = index;
+    option.textContent = dept.name;
+    deptSelect.appendChild(option);
+  });
+}
+
+function renderEmployees() {
+  const employeesTableBody = document.getElementById("employees-table-body");
+  employeesTableBody.innerHTML = "";
+
+  if (window.db.employees.length === 0) {
+    employeesTableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-muted">
+          No employees.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  window.db.employees.forEach((employee, index) => {
+    const userEmail = employee.userEmail || "N/A";
+    const deptName =
+      employee.departmentIndex !== undefined
+        ? window.db.departments[employee.departmentIndex]?.name || "N/A"
+        : "N/A";
+    const hireDate = employee.hireDate || "N/A";
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${employee.id}</td>
+      <td>${userEmail}</td>
+      <td>${employee.position}</td>
+      <td>${deptName}</td>
+      <td>${hireDate}</td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary edit-employee-btn" data-index="${index}" onclick="editEmployee(${index})">Edit</button>
+        <button class="btn btn-sm btn-outline-danger delete-employee-btn" data-index="${index}" onclick="deleteEmployee(event, ${index})">Delete</button>
+      </td>
+    `;
+    employeesTableBody.appendChild(row);
+  });
+}
+
+function openAddEmployeeForm() {
+  // Reset form fields
+  document.getElementById("employee-id").value = "";
+  document.getElementById("employee-email").value = "";
+  document.getElementById("employee-position").value = "";
+  document.getElementById("employee-department").value = "";
+  document.getElementById("employee-hire-date").value = "";
+
+  // Reset button to add mode
+  document.getElementById("save-employee-btn").onclick = addEmployee;
+  document.getElementById("save-employee-btn").textContent = "Save";
+  document.getElementById("delete-employee-btn").classList.add("d-none");
+
+  // Populate dropdowns
+  renderAccountsList();
+  renderDepartmentsList();
+
+  // Show form
+  document.getElementById("employee-form").classList.remove("d-none");
+}
+
+function closeEmployeeForm() {
+  document.getElementById("employee-form").classList.add("d-none");
+}
+
+async function addEmployee(event) {
+  event.preventDefault();
+
+  const id = document.getElementById("employee-id").value.trim();
+  const userEmail = document.getElementById("employee-email").value.trim();
+  const position = document.getElementById("employee-position").value.trim();
+  const departmentIndex = document.getElementById("employee-department").value;
+  const hireDate = document.getElementById("employee-hire-date").value;
+
+  if (!id || !userEmail || !position || departmentIndex === "" || !hireDate) {
+    showToast("Please fill in all fields", "error");
+    return;
+  }
+
+  // Validate that user email exists
+  const userExists = window.db.accounts.find((acc) => acc.email === userEmail);
+  if (!userExists) {
+    showToast("User email does not exist in the system", "error");
+    return;
+  }
+
+  // Check if employee ID already exists
+  const existingId = window.db.employees.find((emp) => emp.id === id);
+  if (existingId) {
+    showToast(
+      "Employee ID already exists. Please use a different ID.",
+      "error",
+    );
+    return;
+  }
+
+  const newEmployee = {
+    id,
+    userEmail,
+    position,
+    departmentIndex: parseInt(departmentIndex),
+    hireDate,
+  };
+
+  window.db.employees.push(newEmployee);
+  saveToStorage();
+  showToast("Employee created successfully!", "success");
+
+  closeEmployeeForm();
+  renderEmployees();
+}
+
+async function editEmployee(index) {
+  const employee = window.db.employees[index];
+  if (!employee) {
+    showToast("Employee not found", "error");
+    return;
+  }
+
+  // Store the index for save/delete operations
+  window.currentEditEmployeeIndex = index;
+
+  document.getElementById("employee-id").value = employee.id;
+  document.getElementById("employee-email").value = employee.userEmail;
+  document.getElementById("employee-position").value = employee.position;
+  document.getElementById("employee-department").value =
+    employee.departmentIndex;
+  document.getElementById("employee-hire-date").value = employee.hireDate;
+
+  // Populate dropdowns
+  renderAccountsList();
+  renderDepartmentsList();
+
+  // Switch button to edit mode
+  document.getElementById("save-employee-btn").onclick = () =>
+    saveEmployee(event);
+  document.getElementById("save-employee-btn").textContent = "Update";
+  document.getElementById("delete-employee-btn").classList.remove("d-none");
+
+  // Show form
+  document.getElementById("employee-form").classList.remove("d-none");
+}
+
+async function saveEmployee(event) {
+  event.preventDefault();
+
+  const index = window.currentEditEmployeeIndex;
+  if (index === undefined) {
+    showToast("Employee not found", "error");
+    return;
+  }
+
+  const userEmail = document.getElementById("employee-email").value.trim();
+  const position = document.getElementById("employee-position").value.trim();
+  const departmentIndex = document.getElementById("employee-department").value;
+  const hireDate = document.getElementById("employee-hire-date").value;
+
+  if (!userEmail || !position || departmentIndex === "" || !hireDate) {
+    showToast("Please fill in all fields", "error");
+    return;
+  }
+
+  // Validate that user email exists
+  const userExists = window.db.accounts.find((acc) => acc.email === userEmail);
+  if (!userExists) {
+    showToast("User email does not exist in the system", "error");
+    return;
+  }
+
+  const employee = window.db.employees[index];
+  const editedEmployee = {
+    ...employee,
+    userEmail,
+    position,
+    departmentIndex: parseInt(departmentIndex),
+    hireDate,
+  };
+
+  window.db.employees[index] = editedEmployee;
+  saveToStorage();
+  showToast("Employee updated successfully!", "success");
+
+  closeEmployeeForm();
+  renderEmployees();
+}
+
+async function deleteEmployee(event, index) {
+  event.preventDefault();
+
+  const employeeIndex =
+    index !== undefined ? index : window.currentEditEmployeeIndex;
+
+  if (employeeIndex === undefined) {
+    showToast("Employee not found", "error");
+    return;
+  }
+
+  const employee = window.db.employees[employeeIndex];
+  if (!employee) {
+    showToast("Employee not found", "error");
+    return;
+  }
+
+  if (confirm(`Are you sure you want to delete employee "${employee.id}"?`)) {
+    window.db.employees.splice(employeeIndex, 1);
+    saveToStorage();
+    showToast("Employee deleted successfully!", "success");
+
+    closeEmployeeForm();
+    renderEmployees();
+  }
+}
+
+// ===== REQUESTS MANAGEMENT =====
+function getStatusBadge(status) {
+  const badges = {
+    Pending: '<span class="badge bg-warning">Pending</span>',
+    Approved: '<span class="badge bg-success">Approved</span>',
+    Rejected: '<span class="badge bg-danger">Rejected</span>',
+  };
+  return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function renderRequests() {
+  const requestsTableBody = document.getElementById("requests-table-body");
+  requestsTableBody.innerHTML = "";
+
+  // Filter requests for current user
+  const userRequests = window.db.requests.filter(
+    (req) => req.employeeEmail === currentUser.email,
+  );
+
+  if (userRequests.length === 0) {
+    requestsTableBody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-muted">
+          No requests yet.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  userRequests.forEach((request) => {
+    // Find the original index in the full requests array
+    const originalIndex = window.db.requests.indexOf(request);
+
+    const itemsList = request.items
+      .map((item) => item.name + " (" + item.qty + ")")
+      .join(", ");
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${request.date}</td>
+      <td>${request.type}</td>
+      <td>${itemsList}</td>
+      <td>${getStatusBadge(request.status)}</td>
+      <td>
+        <button class="btn btn-sm btn-outline-danger delete-request-btn" onclick="deleteRequest(event, ${originalIndex})">Delete</button>
+      </td>
+    `;
+    requestsTableBody.appendChild(row);
+  });
+}
+
+function addRequestItem() {
+  const container = document.getElementById("itemsContainer");
+  const itemCount = container.querySelectorAll(".item-row").length;
+
+  const newRow = document.createElement("div");
+  newRow.className = "row g-2 mb-2 align-items-center item-row";
+  newRow.innerHTML = `
+    <div class="col">
+      <input type="text" class="form-control item-name" placeholder="Item name" required>
+    </div>
+    <div class="col-3">
+      <input type="number" class="form-control item-qty" value="1" min="1" required>
+    </div>
+    <div class="col-auto">
+      <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" onclick="removeRequestItem(this)">×</button>
+    </div>
+  `;
+
+  container.appendChild(newRow);
+}
+
+function removeRequestItem(button) {
+  const container = document.getElementById("itemsContainer");
+  const itemRows = container.querySelectorAll(".item-row");
+
+  // Don't allow removing the last item
+  if (itemRows.length > 1) {
+    button.closest(".item-row").remove();
+  } else {
+    showToast("You must have at least one item", "error");
+  }
+}
+
+async function submitRequest(event) {
+  event.preventDefault();
+
+  const type = document.getElementById("request-type").value;
+
+  if (!type) {
+    showToast("Please select a request type", "error");
+    return;
+  }
+
+  // Collect items
+  const items = [];
+  document.querySelectorAll(".item-row").forEach((row) => {
+    const name = row.querySelector(".item-name").value.trim();
+    const qty = parseInt(row.querySelector(".item-qty").value);
+
+    if (name && qty > 0) {
+      items.push({ name, qty });
+    }
+  });
+
+  // Validate at least one item
+  if (items.length === 0) {
+    showToast("Please add at least one item to your request", "error");
+    return;
+  }
+
+  // Create new request
+  const today = new Date().toISOString().split("T")[0];
+  const newRequest = {
+    type,
+    items,
+    status: "Pending",
+    date: today,
+    employeeEmail: currentUser.email,
+  };
+
+  window.db.requests.push(newRequest);
+  saveToStorage();
+  showToast("Request submitted successfully!", "success");
+
+  // Close modal and reset form
+  const modal = bootstrap.Modal.getInstance(
+    document.getElementById("requestModal"),
+  );
+  if (modal) {
+    modal.hide();
+  }
+  document.getElementById("request-form").reset();
+
+  // Reset items to single row
+  const container = document.getElementById("itemsContainer");
+  container.innerHTML = `
+    <div class="row g-2 mb-2 align-items-center item-row">
+      <div class="col">
+        <input type="text" class="form-control item-name" placeholder="Item name" required>
+      </div>
+      <div class="col-3">
+        <input type="number" class="form-control item-qty" value="1" min="1" required>
+      </div>
+      <div class="col-auto">
+        <button type="button" class="btn btn-sm btn-outline-success add-item-btn" onclick="addRequestItem()">+</button>
+      </div>
+    </div>
+  `;
+
+  renderRequests();
+}
+
+async function deleteRequest(event, index) {
+  event.preventDefault();
+
+  const request = window.db.requests[index];
+  if (!request) {
+    showToast("Request not found", "error");
+    return;
+  }
+
+  if (
+    confirm(
+      "Are you sure you want to delete this " + request.type + " request?",
+    )
+  ) {
+    window.db.requests.splice(index, 1);
+    saveToStorage();
+    showToast("Request deleted successfully!", "success");
+    renderRequests();
+  }
+}
+
 window.addEventListener("hashchange", handleRouting);
 
-document.addEventListener("DOMContentLoaded", async() => {
-
+document.addEventListener("DOMContentLoaded", async () => {
+  localStorage.removeItem("STORAGE_KEY");
+  
+  handleRouting();
   await loadFromStorage();
   const savedUser = localStorage.getItem("currentUser");
   if (savedUser) {
     currentUser = JSON.parse(savedUser);
     setAuthState(true, currentUser);
   }
-
-  // Set default hash if empty
+  
   if (!window.location.hash) {
     window.location.hash = "#/";
   }
-
-  // Run routing
-  handleRouting();
-  localStorage.clear();
-
-  // Setup Get Started button
-  const getStartedBtn = document.getElementById("get-started-btn");
-  if (getStartedBtn) {
-    getStartedBtn.addEventListener("click", () => {
-      navigateTo("#/register");
-    });
-  }
-
-  // Setup Logout button
 
 });
