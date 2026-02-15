@@ -125,10 +125,9 @@
         <div class="alert alert-success d-none" id="verify-alert" role="alert">
          ✅ A verification link has been sent to your email.
         </div>
-        <p>For demo purpose, click below to simulate verification:</p>
+        <p >For demo purpose, click below to simulate verification:</p>
           <button type="button" class="btn btn-success" id="verify-btn" onclick="verifyEmail(event)">✅ Simulate Email Verification</button>
           <a href="#/login" class="btn btn-outline-secondary">Go to Login</a>
-        
       </section>
       
       <section class="page" id="login-section">
@@ -138,7 +137,7 @@
         <h2>Login</h2>
         <form class="login-form">
             <div class="mb-3">
-                <label for="login-email" class="form-label">Email</label>
+                <label for="login-email" class="form-label">Email</label> 
                 <input type="email" class="form-control" id="login-email" required>
 
             </div>
@@ -157,9 +156,9 @@
         <div class="card md-4">
             <h3>Admin User</h3>
             <label for="profile-name" class="form-label">Name</label>
-            <input type="text" class="form-control" id="profile-name" value="Admin User" disabled>
+            <input type="text" class="form-control" id="profile-name"  disabled>
             <label for="profile-role" class="form-label">Role</label>
-            <input type="text" class="form-control" id="profile-role" value="Admin" disabled>
+            <input type="text" class="form-control" id="profile-role"  disabled>
             <button class="btn btn-outline-primary">Edit Profile</button>
         </div>
       </section>
@@ -170,7 +169,7 @@
             <!-- Header + Add Button -->
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 class="mb-0">Employees</h4>
-                <button class="btn btn-success btn-sm">
+                <button class="btn btn-success btn-sm" id="add-employee-btn" onclick="openAddEmployeeForm()">
                     + Add Employee
                 </button>
             </div>
@@ -182,15 +181,16 @@
                         <thead class="table-light">
                             <tr>
                                 <th>ID</th>
-                                <th>Name</th>
+                                <th>User Email</th>
                                 <th>Position</th>
                                 <th>Dept</th>
+                                <th>Hire Date</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="employees-table-body">
                             <tr>
-                                <td colspan="5" class="text-center text-muted">
+                                <td colspan="6" class="text-center text-muted">
                                     No employees.
                                 </td>
                             </tr>
@@ -200,7 +200,7 @@
             </div>
 
             <!-- Add/Edit Employee Form -->
-            <div class="card">
+            <div class="card d-none" id="employee-form">
                 <div class="card-body">
                     <h6 class="mb-3">Add/Edit Employee</h6>
 
@@ -208,33 +208,40 @@
 
                         <div class="mb-3">
                             <label class="form-label">Employee ID</label>
-                            <input type="text" class="form-control">
+                            <input type="text" class="form-control" id="employee-id">
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">User Email</label>
-                            <input type="email" class="form-control">
+                            <select class="form-select" id="employee-email">
+                                <option value="">-- Select User --</option>
+                            </select>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Position</label>
-                            <input type="text" class="form-control">
+                            <input type="text" class="form-control" id="employee-position">
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Department</label>
-                            <input type="text" class="form-control" value="Engineering">
+                            <select class="form-select" id="employee-department">
+                                <option value="">-- Select Department --</option>
+                            </select>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Hire Date</label>
-                            <input type="date" class="form-control">
+                            <input type="date" class="form-control" id="employee-hire-date">
                         </div>
 
-                        <button type="submit" class="btn btn-primary btn-sm">
+                        <button type="submit" class="btn btn-primary btn-sm" id="save-employee-btn" onclick="addEmployee(event)">
                             Save
                         </button>
-                        <button type="button" class="btn btn-secondary btn-sm">
+                        <button type="button" class="btn btn-danger btn-sm d-none" id="delete-employee-btn" onclick="deleteEmployee(event)">
+                            Delete
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="closeEmployeeForm()">
                             Cancel
                         </button>
 
@@ -250,7 +257,7 @@
         <div class="container mt-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
             <h4 class="mb-0">Departments</h4>
-            <button class="btn btn-success btn-sm">+ Add Department</button>
+            <button class="btn btn-success btn-sm" onclick="openAddDepartmentForm()">+ Add Department</button>
         </div>
 
         <div class="container mb-4">
@@ -264,7 +271,7 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="departments-table-body">
                             <tr>
                                 <td colspan="3" class="text-center text-muted">
                                     No Departments.
@@ -272,6 +279,33 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <div class="card d-none" id="department-form" >
+                <div class="card-body">
+                    <h6 class="mb-3">Add/Edit Department</h6>
+                    <form>
+
+                        <div class="mb-3">
+                            <label class="form-label">Department Name</label>
+                            <input type="text" class="form-control" id="department-name">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="department-description" rows="3"></textarea> 
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm " id="add-department-btn" onclick="addDepartment(event)">
+                            Save
+                        </button>
+                        <button type="submit" class="btn btn-primary d-none btn-sm" id="edit-department-btn" onclick="saveDepartment(event)">
+                            Save
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="closeDepartmentForm()">
+                            Cancel
+                        </button>
+
+                    </form>
                 </div>
             </div>
         </div>
@@ -283,7 +317,7 @@
             <!-- Accounts Header -->
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 class="mb-0">Accounts</h4>
-                <button class="btn btn-success btn-sm">
+                <button class="btn btn-success btn-sm" id="add-account-btn" onclick="addAccountModal(event)">
                     + Add Account
                 </button>
             </div>
@@ -301,7 +335,7 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="accounts-table-body">
                             <tr>
                                 <td colspan="5" class="text-center text-muted">
                                     No accounts.
@@ -310,11 +344,11 @@
                         </tbody>
                     </table>
 
-                    <div class="card p-3">
+                    <div class="card p-3 d-none" id="account-form">
                         <div class="card-body">
                          <p>Add/Edit Account</p>
                         </div>
-                        <label for="account-firstname" class="form-label">Name</label>
+                        <label for="account-firstname" class="form-label">First Name</label>
                         <input type="text" class="form-control" id="account-firstname">
 
                         <label for="account-lastname" class="form-label">Last Name</label>
@@ -334,12 +368,12 @@
 
                         <checkbox class="form-check mt-2">
                             <input type="checkbox" class="form-check-input" id="account-verified">
-                            <label for="account-verified" class="form-check-label">Verified</label>
+                            <label for="account-verified" class="form-check-label" >Verified</label>
                         </checkbox>
 
                         <div>
-                            <button class="btn btn-primary">Save</button>
-                            <button class="btn btn-secondary">Cancel</button>
+                            <button class="btn btn-primary" id="save-account-btn" onclick="addAccount(event)">Save</button>
+                            <button class="btn btn-secondary" onclick="closeAccountForm()">Cancel</button>
                         </div>
                     </div>
                 </div>
@@ -350,93 +384,92 @@
       <section class="page" id="requests-section">
         <div class="container mt-4">
             <!-- Requests Header -->
-            <div class=" align-items-center mb-3">
-                <div class="d-flex justify-content-between">
-                    <h4 class="mb-0">My Requests</h4>
-                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#requestModal">
-                        + Add Request
-                    </button>
-                </div>
-                <div class="mt-3">
-                    <p>You have no requests.</p>
-                    <button class="btn btn-success">Create One</button> 
-                </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">My Requests</h4>
+                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#requestModal">
+                    + New Request
+                </button>
             </div>
-
-            <div class="modal fade" id="requestModal" tabindex="-1">
-            <div class="modal-dialog" role="document">
-              <div class="modal-content">
-
-                <!-- Modal Header -->
-                <div class="modal-header">
-                  <h5 class="modal-title" id="requestModalLabel">New Request</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-
-                <!-- Modal Body -->
-                <div class="modal-body">
-
-                  <!-- Type -->
-                  <div class="mb-3">
-                    <label class="form-label">Type</label>
-                    <input type="text" class="form-control" value="Equipment">
-                  </div>
-
-                  <!-- Items -->
-                  <label class="form-label">Items</label>
-
-                  <div id="itemsContainer">
-
-                    <!-- First Row -->
-                    <div class="row g-2 mb-2 align-items-center">
-                      <div class="col">
-                        <input type="text" class="form-control" placeholder="Item name">
-                      </div>
-                      <div class="col-3">
-                        <input type="number" class="form-control" value="1">
-                      </div>
-                      <div class="col-auto">
-                        <button class="btn btn-outline-secondary">+</button>
-                      </div>
-                    </div>
-
-                    <!-- Example Remove Row -->
-                    <div class="row g-2 mb-2 align-items-center">
-                      <div class="col">
-                        <input type="text" class="form-control" placeholder="Item name">
-                      </div>
-                      <div class="col-3">
-                        <input type="number" class="form-control" value="1">
-                      </div>
-                      <div class="col-auto">
-                        <button class="btn btn-outline-danger">×</button>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  <!-- Submit -->
-                  <div class="mt-3">
-                    <button type="button" class="btn btn-primary">Submit Request</button>
-                  </div>
-
-                </div>
-                <!-- Modal Footer -->
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                  <button type="button" class="btn btn-primary">Save Request</button>
-                </div>
-              </div>
-            </div>
-          </div>
 
             <!-- Requests Table -->
+            <div class="card mb-4">
+                <div class="card-body p-0">
+                    <table class="table table-striped mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Items</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requests-table-body">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">
+                                    No requests yet.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- New Request Modal -->
+            <div class="modal fade" id="requestModal" tabindex="-1">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+
+                        <!-- Modal Header -->
+                        <div class="modal-header">
+                            <h5 class="modal-title">New Request</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+
+                        <!-- Modal Body -->
+                        <div class="modal-body">
+                            <form id="request-form" onsubmit="submitRequest(event)">
+                                <!-- Type -->
+                                <div class="mb-3">
+                                    <label class="form-label">Request Type</label>
+                                    <select class="form-select" id="request-type" required>
+                                        <option value="">-- Select Type --</option>
+                                        <option value="Equipment">Equipment</option>
+                                        <option value="Leave">Leave</option>
+                                        <option value="Resources">Resources</option>
+                                    </select>
+                                </div>
+
+                                <!-- Items -->
+                                <div class="mb-3">
+                                    <label class="form-label">Items</label>
+                                    <div id="itemsContainer">
+                                        <div class="row g-2 mb-2 align-items-center item-row">
+                                            <div class="col">
+                                                <input type="text" class="form-control item-name" placeholder="Item name" required>
+                                            </div>
+                                            <div class="col-3">
+                                                <input type="number" class="form-control item-qty" value="1" min="1" required>
+                                            </div>
+                                            <div class="col-auto">
+                                                <button type="button" class="btn btn-sm btn-outline-success add-item-btn" onclick="addRequestItem()">+</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Submit -->
+                                <div class="mt-3">
+                                    <button type="submit" class="btn btn-primary">Submit Request</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
       </section>
     </main>
-
-    
-
 
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
