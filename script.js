@@ -1,5 +1,5 @@
 let currentUser = null;
-const STORAGE_KEY = "ipt_demi_v1";
+const STORAGE_KEY = "ipt_demo_v1";
 
 window.db = {
   accounts: [],
@@ -9,9 +9,11 @@ window.db = {
 };
 
 function saveToStorage() {
+  //save the current state of the database to the local storage
   localStorage.setItem(STORAGE_KEY, JSON.stringify(window.db));
 }
 async function seedDatabase() {
+  //seed the database with default data if local storage is empty or corrupted
   const adminPassword = await hashPassword("Password123!");
 
   window.db = {
@@ -44,6 +46,7 @@ async function seedDatabase() {
 }
 
 async function loadFromStorage() {
+  //load the database state from local storage, with error handling for corruption
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
 
@@ -68,6 +71,7 @@ async function loadFromStorage() {
 
 // Toast notification function
 function showToast(message, type = "error") {
+  //  A function `showToast(message, type)` that creates a toast notification with the given message and type (e.g., "success", "error", "info") and automatically disappears after 3 seconds.
   // Remove existing toast if any
   const existingToast = document.querySelector(".toast-message");
   if (existingToast) {
@@ -97,6 +101,7 @@ function showToast(message, type = "error") {
 }
 
 async function hashPassword(password) {
+  // A function `hashPassword(password)` that takes a plaintext password and returns a hashed version using the SHA-256 algorithm.
   // 1. Convert the string to a byte array (Uint8Array)
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
@@ -138,12 +143,14 @@ function handleRouting() {
     (protectedRoutes.includes(route) || adminRoutes.includes(route)) &&
     !isAuth
   ) {
+    showToast("Please login to access this page.", "error");
     return navigateTo("#/login");
   }
 
   // Redirect logic: If authenticated but not admin tries to access admin routes
   if (adminRoutes.includes(route) && !isAdmin) {
-    return navigateTo("#/");
+    showToast("Access denied. Admins only.", "error");
+    return navigateTo("#/profile");
   }
   // Hide all pages first
   document.querySelectorAll(".page").forEach((page) => {
@@ -188,6 +195,7 @@ function handleRouting() {
 }
 
 async function handleRegistration(event) {
+  // A function `handleRegistration(event)` that handles the registration form submission, including validation, password hashing, and storing the new user in the database.
   event.preventDefault();
 
   const firstName = document.getElementById("first-name").value.trim();
@@ -253,6 +261,7 @@ async function handleRegistration(event) {
 }
 
 function verifyEmail(event) {
+  // A function `verifyEmail(event)` that simulates email verification by checking the unverified email in local storage, updating the user's verified status in the database, and providing appropriate feedback to the user.
   event.preventDefault();
 
   const email = localStorage.getItem("unverified_email"); // Finds the email in the local storage
@@ -278,6 +287,7 @@ function verifyEmail(event) {
 }
 
 function setAuthState(isAuthenticated, user = null) {
+  // A function `setAuthState(isAuthenticated, user)` that updates the application's state based on whether the user is authenticated or not, including storing the JWT token in local storage, updating the UI (e.g., showing/hiding navbar links), and handling admin-specific UI changes.
   const navUnauthenticated = document.getElementById("nav-unauthenticated");
   const navAuthenticated = document.getElementById("nav-authenticated");
 
@@ -310,22 +320,21 @@ function setAuthState(isAuthenticated, user = null) {
     if (navAuthenticated) navAuthenticated.classList.add("d-none");
   }
 }
-
 // Handle Logout
 function handleLogout(event) {
+  // A function `handleLogout(event)` that clears the authentication state, removes the JWT token from local storage, updates the UI to reflect the logged-out state, and redirects the user to the home or login page.
   event.preventDefault();
   // localStorage.clear();
   localStorage.removeItem("auth_token");
   localStorage.removeItem("currentUser");
   setAuthState(false);
   showToast("You have been logged out", "success");
-  setTimeout(() => {
-    navigateTo("#/");
-  }, 1000);
+  navigateTo("#/");
 }
 
 // Handle Login
 async function handleLogin(event) {
+  // A function `handleLogin(event)` that handles the login form submission, including validating the user's credentials against the stored accounts in the database, checking if the email is verified, hashing the entered password and comparing it with the stored hashed password, and setting the authentication state if successful.
   event.preventDefault();
 
   const email = document.getElementById("login-email").value.trim();
@@ -352,7 +361,6 @@ async function handleLogin(event) {
     );
     return;
   }
-
   // Set current user
   currentUser = user;
   localStorage.setItem("auth_token", user.email); // Simulating JWT token storage
@@ -368,7 +376,6 @@ async function handleLogin(event) {
   if (user.role === "Admin") {
     document.body.classList.add("is-admin");
   }
-
   setTimeout(() => {
     setAuthState(true, user);
     navigateTo("#/profile");
@@ -376,6 +383,7 @@ async function handleLogin(event) {
 }
 
 function renderProfile() {
+  // A function `renderProfile()` that displays the current user's profile information on the profile page, including their name, email, and role. It should also provide an option to edit the profile (except for email) and save changes to the database.
   currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
   if (!currentUser) {
@@ -383,12 +391,13 @@ function renderProfile() {
     navigateTo("#/login");
     return;
   }
- // console.log("Rendering profile for user:", currentUser);
+  // console.log("Rendering profile for user:", currentUser);
   const userName = currentUser.firstName + " " + currentUser.lastName;
   document.getElementById("profile-name").value = userName;
   document.getElementById("profile-role").value = currentUser.role;
 }
 function addAccountModal() {
+  // A function `addAccountModal()` that opens the account form modal in "add" mode, resetting all fields and setting the appropriate button actions for saving a new account.
   // Reset form fields
   document.getElementById("account-firstname").value = "";
   document.getElementById("account-lastname").value = "";
@@ -735,17 +744,18 @@ function renderDepartments() {
     departmentsTableBody.appendChild(row);
   });
 }
-
 // Helper function to populate User Email dropdown
 function renderAccountsList() {
   const emailSelect = document.getElementById("employee-email");
   emailSelect.innerHTML = '<option value="">-- Select User --</option>';
 
   window.db.accounts.forEach((account) => {
-    const option = document.createElement("option");
-    option.value = account.email;
-    option.textContent = `${account.firstName} ${account.lastName} (${account.email})`;
-    emailSelect.appendChild(option);
+    if (account.role === "User") {
+      const option = document.createElement("option");
+      option.value = account.email;
+      option.textContent = `${account.firstName} ${account.lastName} (${account.email})`;
+      emailSelect.appendChild(option);
+    }
   });
 }
 
@@ -988,15 +998,19 @@ function renderRequests() {
   const requestsTableBody = document.getElementById("requests-table-body");
   requestsTableBody.innerHTML = "";
 
-  // Filter requests for current user
-  const userRequests = window.db.requests.filter(
-    (req) => req.employeeEmail === currentUser.email,
-  );
+  // Check if user is admin - show all requests, otherwise show only their requests
+  const isAdmin = currentUser && currentUser.role === "Admin";
+  const requestsToDisplay = isAdmin
+    ? window.db.requests
+    : window.db.requests.filter(
+        (req) => req.employeeEmail === currentUser.email,
+      );
 
-  if (userRequests.length === 0) {
+  if (requestsToDisplay.length === 0) {
+    const colspan = isAdmin ? 6 : 5;
     requestsTableBody.innerHTML = `
       <tr>
-        <td colspan="5" class="text-center text-muted">
+        <td colspan="${colspan}" class="text-center text-muted">
           No requests yet.
         </td>
       </tr>
@@ -1004,7 +1018,7 @@ function renderRequests() {
     return;
   }
 
-  userRequests.forEach((request) => {
+  requestsToDisplay.forEach((request) => {
     // Find the original index in the full requests array
     const originalIndex = window.db.requests.indexOf(request);
 
@@ -1013,15 +1027,42 @@ function renderRequests() {
       .join(", ");
 
     const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${request.date}</td>
-      <td>${request.type}</td>
-      <td>${itemsList}</td>
-      <td>${getStatusBadge(request.status)}</td>
-      <td>
+
+    let actionsHTML = "";
+    if (isAdmin) {
+      // Admin can update status or delete
+      actionsHTML = `
+        <button class="btn btn-sm btn-outline-success update-request-btn" onclick="updateRequestStatus(event, ${originalIndex}, 'Approved')">
+          <i class="bi bi-check-circle"></i> Approve
+        </button>
+        <button class="btn btn-sm btn-outline-danger update-request-btn ms-2" onclick="updateRequestStatus(event, ${originalIndex}, 'Rejected')">
+          <i class="bi bi-x-circle"></i> Reject
+        </button>
+      `;
+    } else {
+      actionsHTML = `
         <button class="btn btn-sm btn-outline-danger delete-request-btn" onclick="deleteRequest(event, ${originalIndex})">Delete</button>
-      </td>
-    `;
+      `;
+    }
+
+    if (isAdmin) {
+      row.innerHTML = `
+        <td>${request.date}</td>
+        <td>${request.type}</td>
+        <td>${itemsList}</td>
+        <td>${getStatusBadge(request.status)}</td>
+        <td>${request.employeeEmail}</td>
+        <td>${actionsHTML}</td>
+      `;
+    } else {
+      row.innerHTML = `
+        <td>${request.date}</td>
+        <td>${request.type}</td>
+        <td>${itemsList}</td>
+        <td>${getStatusBadge(request.status)}</td>
+        <td>${actionsHTML}</td>
+      `;
+    }
     requestsTableBody.appendChild(row);
   });
 }
@@ -1149,21 +1190,38 @@ async function deleteRequest(event, index) {
   }
 }
 
+async function updateRequestStatus(event, index, newStatus) {
+  event.preventDefault();
+
+  const request = window.db.requests[index];
+  if (!request) {
+    showToast("Request not found", "error");
+    return;
+  }
+
+  const statusText = newStatus === "Approved" ? "approved" : "rejected";
+  if (
+    confirm(
+      `Are you sure you want to ${statusText} this ${request.type} request?`,
+    )
+  ) {
+    request.status = newStatus;
+    saveToStorage();
+    showToast(`Request ${statusText} successfully!`, "success");
+    renderRequests();
+  }
+}
+
 window.addEventListener("hashchange", handleRouting);
 
 document.addEventListener("DOMContentLoaded", async () => {
-  localStorage.removeItem("STORAGE_KEY");
   
-  handleRouting();
   await loadFromStorage();
   const savedUser = localStorage.getItem("currentUser");
   if (savedUser) {
     currentUser = JSON.parse(savedUser);
     setAuthState(true, currentUser);
   }
-  
-  if (!window.location.hash) {
-    window.location.hash = "#/";
-  }
 
+  handleRouting();
 });
